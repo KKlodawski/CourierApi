@@ -12,7 +12,7 @@ const hashPassword = async (password) => {
 }
 
 
-router.post('/auth', async function(req, res, next) {
+router.post('/auth', async function(req, res) {
     try {
         const { Login, Password } = req.body;
         const usr = await user.findOne({ where: { Login: Login }});
@@ -38,7 +38,7 @@ router.post('/auth', async function(req, res, next) {
 
 });
 
-router.post('/register', async (req,res,next) => {
+router.post('/register', async (req,res) => {
     try {
         const { Login, Password, Name, Surname, Email, Phone} = req.body;
         const usr = await user.findOne({ where: { Login: Login }});
@@ -113,46 +113,68 @@ router.get('/:login', verifyToken([Roles.CLIENT,Roles.COURIER,Roles.MANAGER]), a
 
 })
 
-router.post("/modify", verifyToken([Roles.CLIENT,Roles.COURIER,Roles.MANAGER]), async function(req, res, next) {
-    const {id, role, name, surname, phone, email} = req.body;
-    if(role === Roles.CLIENT) {
-        const usr = await client.findByPk(id);
-        await usr.update({
-            IdClient: usr.IdClient,
-            IdUser: usr.IdUser,
-            Name: name,
-            Surname: surname,
-            Email: email,
-            Phone: phone
-        })
-        res.status(200).json({message: "modificationSuccessful"})
-    }
-    else if(role === Roles.COURIER) {
-        const usr = await courier.findByPk(id);
-        await usr.update({
-            IdCourier: usr.IdCourier,
-            IdUser: usr.IdUser,
-            Name: name,
-            Surname: surname
-        })
-        res.status(200).json({message: "modificationSuccessful"})
-    }
-    else if(role === Roles.MANAGER) {
-        const usr = await menager.findByPk(id);
-        await usr.update({
-            IdManager: usr.IdMenager,
-            IdUser: usr.IdUser,
-            Name: name,
-            Surname: surname
-        })
-        res.status(200).json({message: "modificationSuccessful"})
-    }
-    else {
-        res.status(304);
-        res.send();
+router.post("/modify", verifyToken([Roles.CLIENT,Roles.COURIER,Roles.MANAGER]), async function(req, res) {
+    try {
+        const {id, role, name, surname, phone, email} = req.body;
+        if (role === Roles.CLIENT) {
+            const usr = await client.findByPk(id);
+            await usr.update({
+                IdClient: usr.IdClient,
+                IdUser: usr.IdUser,
+                Name: name,
+                Surname: surname,
+                Email: email,
+                Phone: phone
+            })
+            res.status(200).json({message: "modificationSuccessful"})
+        } else if (role === Roles.COURIER) {
+            const usr = await courier.findByPk(id);
+            await usr.update({
+                IdCourier: usr.IdCourier,
+                IdUser: usr.IdUser,
+                Name: name,
+                Surname: surname
+            })
+            res.status(200).json({message: "modificationSuccessful"})
+        } else if (role === Roles.MANAGER && false) {
+            const usr = await menager.findByPk(id);
+            await usr.update({
+                IdManager: usr.IdMenager,
+                IdUser: usr.IdUser,
+                Name: name,
+                Surname: surname
+            })
+            res.status(200).json({message: "modificationSuccessful"})
+        } else {
+            res.status(304);
+            res.send();
+        }
+    } catch (error) {
+        res.status(500).json({ error: "Internal Server Error"});
     }
 })
 
-
+router.post("/changePassword", verifyToken([Roles.CLIENT,Roles.COURIER,Roles.MANAGER]), async function(req, res) {
+    try {
+        const {username, password} = req.body;
+        const usr = await user.findOne({where: {Login: username}})
+        bcrypt.compare(password, usr.Password, async (err, result) => {
+            if (result)
+                res.status(202).json({message: 'samePassword'});
+            else {
+                const hashedPassword = await hashPassword(password);
+                await usr.update({
+                    IdUser: usr.IdUser,
+                    Login: usr.Login,
+                    Password: hashedPassword,
+                    Role: usr.Role
+                })
+                res.status(200).json({message: 'passwordChanged'});
+            }
+        })
+    } catch (error) {
+        res.status(500).json({ error: "Internal Server Error"});
+    }
+})
 
 module.exports = router;
